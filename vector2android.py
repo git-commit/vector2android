@@ -4,7 +4,6 @@
 from wand.image import Image
 import argparse
 import os
-from threading import Thread
 from os.path import join
 import ntpath
 
@@ -14,20 +13,22 @@ def main():
 
     px = args.pixels
     out = args.out
-    filename_wo_ext = os.path.splitext(ntpath.basename(args.input))[0]
+    filename_out = os.path.splitext(ntpath.basename(args.input))[0] + ".png"
 
-    img = Image(filename=args.input)
+    img = Image(filename=args.input, resolution=(72, 72))
+    img.clone().convert('png').save(filename="xxx.png")
     if args.mode is 'android' or args.mode is 'all':
-        ImageConverterThread(img, px,       join(out, "drawable-mdpi"), filename_wo_ext)
-        ImageConverterThread(img, px * 1.5, join(out, "drawable-hdpi"), filename_wo_ext)
-        ImageConverterThread(img, px * 2,   join(out, "drawable-xhdpi"), filename_wo_ext)
-        ImageConverterThread(img, px * 3,   join(out, "drawable-xxhdpi"), filename_wo_ext)
-        ImageConverterThread(img, px * 4,   join(out, "drawable-xxxhdpi"), filename_wo_ext)
+        convertImage(img, px,       join(out, "drawable-mdpi"), filename_out)
+        convertImage(img, int(px * 1.5), join(out, "drawable-hdpi"), filename_out)
+        convertImage(img, px * 2,   join(out, "drawable-xhdpi"), filename_out)
+        convertImage(img, px * 3,   join(out, "drawable-xxhdpi"), filename_out)
+        convertImage(img, px * 4,   join(out, "drawable-xxxhdpi"), filename_out)
     elif args.mode is 'ios' or args.mode is 'all':
-        ImageConverterThread(img, px,       join(out, "ios-1x"), filename_wo_ext)
-        ImageConverterThread(img, px * 2,   join(out, "ios-2x"), filename_wo_ext)
-        ImageConverterThread(img, px * 3,   join(out, "ios-3x"), filename_wo_ext)
+        convertImage(img, px * 2,   join(out, "ios-2x"), filename_out)
+        convertImage(img, px,       join(out, "ios-1x"), filename_out)
+        convertImage(img, px * 3,   join(out, "ios-3x"), filename_out)
     img.close()
+
 
 def parseArguments():
     parser = argparse.ArgumentParser()
@@ -72,23 +73,17 @@ def valid_mode(string):
     return string
 
 
-class ImageConverterThread(Thread):
+def convertImage(image, output_size, output_path, out_filename):
+    try:
+        os.makedirs(output_path)
+    except:
+        pass
 
-    def __init__(self, image, output_size, output_path, filename):
-        super(ImageConverterThread, self).__init__()
-        self.image = image
-        self.output_size = output_size
-        self.output_path = output_path
-        self.out_filename = filename.join(".png")
-        self.daemon = True
-        self.start()
-
-    def run(self):
-        os.makedirs(self.output_path)
-        with self.image.clone() as out_image:
-            out_image.resize(self.output_size, self.output_size)
-            out_image.format = 'png'
-            out_image.save(filename=os.path.join(self.output_path, self.out_filename))
+    with image.clone() as out_image:
+        print("Converting Image")
+        out_image.resize(output_size, output_size)
+        out_image.format = 'png'
+        out_image.save(filename=os.path.join(output_path, out_filename))
 
 if __name__ == '__main__':
     main()
